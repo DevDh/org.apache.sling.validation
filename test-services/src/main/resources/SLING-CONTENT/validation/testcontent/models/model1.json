@@ -1,0 +1,20 @@
+{
+    "validatedResourceType": "validation/test/resourceType1",
+    "applicablePaths": [
+        "/validation/testing/fakeFolder1"
+    ],
+    "sling:resourceType": "sling/validation/model",
+    "fields": {
+        "jcr:primaryType" : "nt:unstructured",
+        "field1": {
+            "jcr:primaryType" : "nt:unstructured",
+            "fieldType": "string",
+            "validators": {
+                "jcr:primaryType" : "nt:unstructured",
+                "org.apache.sling.validation.impl.validators.AlphaCharactersValidator": {
+                    "jcr:primaryType" : "nt:unstructured"
+                }
+            }
+        }
+    }
+}

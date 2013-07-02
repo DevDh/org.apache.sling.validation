@@ -32,7 +32,7 @@ import org.apache.sling.validation.api.ValidationResult;
 import org.apache.sling.validation.api.ValidationService;
 import org.apache.sling.validation.api.ValidatorLookupService;
 import org.apache.sling.validation.impl.setup.MockedResourceResolver;
-import org.apache.sling.validation.impl.validators.AlphaCharactersValidator;
+import org.apache.sling.validation.impl.validators.RegexValidator;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -107,15 +107,15 @@ public class ValidationServiceImplTest {
 
     @Test
     public void testGetValidationModel() throws Exception {
-        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.AlphaCharactersValidator")).thenReturn(new
-                AlphaCharactersValidator());
+        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.RegexValidator")).thenReturn(new
+                RegexValidator());
         Whitebox.setInternalState(validationService, "validatorLookupService", validatorLookupService);
 
         List<TestField> fields = new ArrayList<TestField>();
         TestField field = new TestField();
         field.name = "field1";
         field.type = Type.DATE;
-        field.validators.put("org.apache.sling.validation.impl.validators.AlphaCharactersValidator", null);
+        field.validators.put("org.apache.sling.validation.impl.validators.RegexValidator", null);
         fields.add(field);
         ResourceResolver rr = rrf.getAdministrativeResourceResolver(null);
         Resource model1 = null, model2 = null;
@@ -151,16 +151,65 @@ public class ValidationServiceImplTest {
     }
 
     @Test
-    public void testValidateFieldWithWrongDataType() throws Exception {
-        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.AlphaCharactersValidator")).thenReturn(new
-                AlphaCharactersValidator());
+    public void testGetValidationModelWithOverlay() throws Exception {
+        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.RegexValidator")).thenReturn(new
+                RegexValidator());
         Whitebox.setInternalState(validationService, "validatorLookupService", validatorLookupService);
 
         List<TestField> fields = new ArrayList<TestField>();
         TestField field = new TestField();
         field.name = "field1";
         field.type = Type.DATE;
-        field.validators.put("org.apache.sling.validation.impl.validators.AlphaCharactersValidator", null);
+        field.validators.put("org.apache.sling.validation.impl.validators.RegexValidator", null);
+        fields.add(field);
+        ResourceResolver rr = rrf.getAdministrativeResourceResolver(null);
+        Resource model1 = null, model2 = null, model3 = null;
+        try {
+            if (rr != null) {
+                model1 = createValidationModelResource(rr, libsValidatorsRoot.getPath(), "testValidationModel1", "sling/validation/test",
+                        new String[]{"/apps/validation/1"}, fields);
+                model2 = createValidationModelResource(rr, appsValidatorsRoot.getPath(), "testValidationModel1", "sling/validation/test",
+                        new String[]{"/apps/validation/1",
+                                "/apps/validation/2"}, fields);
+                model3 = createValidationModelResource(rr, libsValidatorsRoot.getPath(), "testValidationModel2", "sling/validation/test",
+                        new String[]{"/apps/validation/3"}, fields);
+            }
+
+            // BEST MATCHING PATH = /apps/validation/1; assume the applicable paths contain /apps/validation/2
+            ValidationModel vm = validationService.getValidationModel("sling/validation/test", "/apps/validation/1/resource");
+            assertTrue(arrayContainsString(vm.getApplicablePaths(), "/apps/validation/2"));
+
+            vm = validationService.getValidationModel("sling/validation/test", "/apps/validation/3/resource");
+            assertTrue(arrayContainsString(vm.getApplicablePaths(), "/apps/validation/3"));
+
+            if (model1 != null) {
+                rr.delete(model1);
+            }
+            if (model2 != null) {
+                rr.delete(model2);
+            }
+            if (model3 != null) {
+                rr.delete(model3);
+            }
+        } finally {
+            if (rr != null) {
+                rr.commit();
+                rr.close();
+            }
+        }
+    }
+
+    @Test
+    public void testValidateFieldWithWrongDataType() throws Exception {
+        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.RegexValidator")).thenReturn(new
+                RegexValidator());
+        Whitebox.setInternalState(validationService, "validatorLookupService", validatorLookupService);
+
+        List<TestField> fields = new ArrayList<TestField>();
+        TestField field = new TestField();
+        field.name = "field1";
+        field.type = Type.DATE;
+        field.validators.put("org.apache.sling.validation.impl.validators.RegexValidator", null);
         fields.add(field);
         ResourceResolver rr = rrf.getAdministrativeResourceResolver(null);
         Resource model1 = null;
@@ -188,53 +237,16 @@ public class ValidationServiceImplTest {
     }
 
     @Test
-     public void testValidateFieldWithMissingField() throws Exception {
-        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.AlphaCharactersValidator")).thenReturn(new
-                AlphaCharactersValidator());
-        Whitebox.setInternalState(validationService, "validatorLookupService", validatorLookupService);
-
-        List<TestField> fields = new ArrayList<TestField>();
-        TestField field = new TestField();
-        field.name = "field1";
-        field.type = Type.DATE;
-        field.validators.put("org.apache.sling.validation.impl.validators.AlphaCharactersValidator", null);
-        fields.add(field);
-        ResourceResolver rr = rrf.getAdministrativeResourceResolver(null);
-        Resource model1 = null;
-        try {
-            if (rr != null) {
-                model1 = createValidationModelResource(rr, libsValidatorsRoot.getPath(), "testValidationModel1", "sling/validation/test",
-                        new String[]{"/apps/validation"}, fields);
-            }
-            ValidationModel vm = validationService.getValidationModel("sling/validation/test", "/apps/validation/1/resource");
-            HashMap<String, Object> hashMap = new HashMap<String, Object>() {{
-                put("field2", "1");
-            }};
-            ValueMap map = new ValueMapDecorator(hashMap);
-            ValidationResult vr = validationService.validate(map, vm);
-            assertFalse(vr.isValid());
-            if (model1 != null) {
-                rr.delete(model1);
-            }
-        } finally {
-            if (rr != null) {
-                rr.commit();
-                rr.close();
-            }
-        }
-    }
-
-    @Test
-    public void testValidateFieldCorrectData() throws Exception {
-        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.AlphaCharactersValidator")).thenReturn(new
-                AlphaCharactersValidator());
+    public void testValidateFieldWithCorrectDataType() throws Exception {
+        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.RegexValidator")).thenReturn(new
+                RegexValidator());
         Whitebox.setInternalState(validationService, "validatorLookupService", validatorLookupService);
 
         List<TestField> fields = new ArrayList<TestField>();
         TestField field = new TestField();
         field.name = "field1";
         field.type = Type.STRING;
-        field.validators.put("org.apache.sling.validation.impl.validators.AlphaCharactersValidator", null);
+        field.validators.put("org.apache.sling.validation.impl.validators.RegexValidator", new String[] {"regex=^\\p{L}+$"});
         fields.add(field);
         ResourceResolver rr = rrf.getAdministrativeResourceResolver(null);
         Resource model1 = null;
@@ -250,6 +262,43 @@ public class ValidationServiceImplTest {
             ValueMap map = new ValueMapDecorator(hashMap);
             ValidationResult vr = validationService.validate(map, vm);
             assertTrue(vr.isValid());
+            if (model1 != null) {
+                rr.delete(model1);
+            }
+        } finally {
+            if (rr != null) {
+                rr.commit();
+                rr.close();
+            }
+        }
+    }
+
+    @Test
+     public void testValidateMapWithMissingField() throws Exception {
+        when(validatorLookupService.getValidator("org.apache.sling.validation.impl.validators.RegexValidator")).thenReturn(new
+                RegexValidator());
+        Whitebox.setInternalState(validationService, "validatorLookupService", validatorLookupService);
+
+        List<TestField> fields = new ArrayList<TestField>();
+        TestField field = new TestField();
+        field.name = "field1";
+        field.type = Type.DATE;
+        field.validators.put("org.apache.sling.validation.impl.validators.RegexValidator", null);
+        fields.add(field);
+        ResourceResolver rr = rrf.getAdministrativeResourceResolver(null);
+        Resource model1 = null;
+        try {
+            if (rr != null) {
+                model1 = createValidationModelResource(rr, libsValidatorsRoot.getPath(), "testValidationModel1", "sling/validation/test",
+                        new String[]{"/apps/validation"}, fields);
+            }
+            ValidationModel vm = validationService.getValidationModel("sling/validation/test", "/apps/validation/1/resource");
+            HashMap<String, Object> hashMap = new HashMap<String, Object>() {{
+                put("field2", "1");
+            }};
+            ValueMap map = new ValueMapDecorator(hashMap);
+            ValidationResult vr = validationService.validate(map, vm);
+            assertFalse(vr.isValid());
             if (model1 != null) {
                 rr.delete(model1);
             }
@@ -284,7 +333,7 @@ public class ValidationServiceImplTest {
                                 fieldResource.getPath() + "/" + ValidationServiceImpl.VALIDATORS,
                                 JcrConstants.NT_UNSTRUCTURED, null, true);
                         if (validators != null) {
-                            for (Map.Entry<String, String> v : field.validators.entrySet()) {
+                            for (Map.Entry<String, String[]> v : field.validators.entrySet()) {
                                 Map<String, Object> validatorProperties = new HashMap<String, Object>();
                                 validatorProperties.put(JcrConstants.JCR_PRIMARYTYPE, JcrConstants.NT_UNSTRUCTURED);
                                 if (v.getValue() != null) {
@@ -317,10 +366,10 @@ public class ValidationServiceImplTest {
     private class TestField {
         String name;
         Type type;
-        Map<String, String> validators;
+        Map<String, String[]> validators;
 
         TestField() {
-            validators = new HashMap<String, String>();
+            validators = new HashMap<String, String[]>();
         }
     }
 

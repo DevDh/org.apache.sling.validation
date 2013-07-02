@@ -11,8 +11,9 @@
             "fieldType": "string",
             "validators": {
                 "jcr:primaryType" : "nt:unstructured",
-                "org.apache.sling.validation.impl.validators.AlphaCharactersValidator": {
-                    "jcr:primaryType" : "nt:unstructured"
+                "org.apache.sling.validation.impl.validators.RegexValidator": {
+                    "jcr:primaryType" : "nt:unstructured",
+                    "validatorArguments" : ["regex=^\\p{L}+$"]
                 }
             }
         }

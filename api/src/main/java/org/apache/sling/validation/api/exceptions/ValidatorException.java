@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -16,34 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.sling.validation.api;
-
-import java.util.Map;
+package org.apache.sling.validation.api.exceptions;
 
 /**
- * Describes a form field / property.
+ * Exception that is thrown for Validator inconsistencies.
  */
-public interface Field {
+public class ValidatorException extends Exception {
 
-    /**
-     * Returns the name of this field / property.
-     *
-     * @return the name
-     */
-    String getName();
+    public ValidatorException() {
+        super();
+    }
 
-    /**
-     * Returns the type of data this field should contain.
-     *
-     * @return the type
-     */
-    Type getType();
+    public ValidatorException(String message) {
+        super(message);
+    }
 
-    /**
-     * Returns a map containing the validators that should be applied to this field together with the arguments for each validator, also
-     * stored in a key-value map.
-     *
-     * @return the validators
-     */
-    Map<Validator, Map<String, String>> getValidators();
 }

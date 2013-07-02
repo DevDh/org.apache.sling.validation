@@ -18,7 +18,7 @@
  */
 package org.apache.sling.validation.impl.util;
 
-import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Trie data structure used for storing objects using {@link String} keys that allows object retrieval using a longest matching key
@@ -42,7 +42,7 @@ public class Trie<T> {
             int length = key.length();
             TrieNode<T> node = ROOT;
             for (int index = 0; index < length; index++) {
-                HashMap<Character, TrieNode<T>> children = node.getChildren();
+                Map<Character, TrieNode<T>> children = node.getChildren();
                 char character = key.charAt(index);
                 node = children.get(character);
                 if (node == null) {
@@ -69,7 +69,7 @@ public class Trie<T> {
             TrieNode<T> node = ROOT;
             for (int index = 0; index < length; index++) {
                 char character = key.charAt(index);
-                HashMap<Character, TrieNode<T>> children = node.getChildren();
+                Map<Character, TrieNode<T>> children = node.getChildren();
                 node = children.get(character);
                 if (node != null) {
                     if (node.isLeaf()) {
@@ -80,6 +80,35 @@ public class Trie<T> {
                 }
             }
 
+        }
+        return result;
+    }
+
+    /**
+     * Returns the {@link TrieNode} stored under the given {@code key}. If no element is stored under that key, the {@link Trie#ROOT} node
+     * will be returned.
+     * @param key the key
+     * @return the {@link TrieNode} stored under the given key or the {@link Trie#ROOT} if no node is found under that {@code key}
+     */
+    public TrieNode<T> getElement(String key) {
+        TrieNode<T> result = ROOT;
+        TrieNode<T> node = null;
+        boolean nodeExists = true;
+        if (key != null && !"".equals(key)) {
+            int length = key.length();
+            node = ROOT;
+            for (int index = 0; index < length; index++) {
+                char character = key.charAt(index);
+                Map<Character, TrieNode<T>> children = node.getChildren();
+                node = children.get(character);
+                if (node == null) {
+                    nodeExists = false;
+                    break;
+                }
+            }
+        }
+        if (nodeExists) {
+            result = node;
         }
         return result;
     }

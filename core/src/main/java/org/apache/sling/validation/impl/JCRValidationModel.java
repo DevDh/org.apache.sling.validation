@@ -5,13 +5,15 @@ import org.apache.sling.validation.api.ValidationModel;
 
 import java.util.Set;
 
-public class ValidationModelImpl implements ValidationModel {
+public class JCRValidationModel implements ValidationModel {
 
     private Set<Field> fields;
     private String validatedResourceType;
     private String[] applicablePaths;
+    private String jcrPath;
 
-    public ValidationModelImpl(Set<Field> fields, String validatedResourceType, String[] applicablePaths) {
+    public JCRValidationModel(String jcrPath, Set<Field> fields, String validatedResourceType, String[] applicablePaths) {
+        this.jcrPath = jcrPath;
         this.fields = fields;
         this.validatedResourceType = validatedResourceType;
         this.applicablePaths = applicablePaths;
@@ -27,5 +29,9 @@ public class ValidationModelImpl implements ValidationModel {
 
     public String[] getApplicablePaths() {
         return applicablePaths;
+    }
+
+    public String getJcrPath() {
+        return jcrPath;
     }
 }

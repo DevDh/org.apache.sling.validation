@@ -51,24 +51,11 @@ validationModel
 where all nodes can be of type `nt:unstructured`.
 
 ## Testing the default implementation
-1. Clone and build Apache Sling
-
-        git clone https://github.com/apache/sling.git
-        cd sling/
-        mvn clean install -DskipTests
-
-2. Launch a launchpad instance
-
-        cd sling/launchpad/testing
-        mvn launchpad:run
-
-3. Clone this repository and install the bundles (api, core and test-services)
+1. Clone this repository and install the bundles (api, core test-services, it-http)
 
         git clone https://github.com/raducotescu/org.apache.sling.validation.git
         cd org.apache.sling.validation/
-        mvn clean install sling:install -Dsling.url=http://localhost:8888/system/console
+        mvn clean install
 
-4. Run the `ValidationServiceIT` integration test
-
-        cd org.apache.sling.validation/test-services
-        mvn -Dtest=ValidationServiceIT test
+    This will install all the artifacts in your local repository. During the install phase of the `it-http` module a Sling Launchpad instance
+    will be automatically turned on and all the tests from the `it-http` module will be run.

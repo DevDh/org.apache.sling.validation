@@ -18,7 +18,9 @@
  */
 package org.apache.sling.validation.api;
 
-import java.util.List;
+import org.apache.sling.validation.api.exceptions.ValidatorException;
+
+import java.util.Map;
 
 /**
  * A {@code Validator} is responsible for validating a single piece of information according to an internal constraint.
@@ -30,6 +32,8 @@ public interface Validator {
      *
      * @param data the data to validate
      * @return {@code true} if the data is valid, {@code false} otherwise
+     * @throws ValidatorException if the method is called with {@code null} arguments or some expected arguments are missing from the
+     *                            arguments map
      */
-    boolean validate(String data, List<ValidatorArgument> arguments);
+    boolean validate(String data, Map<String, String> arguments) throws ValidatorException;
 }

@@ -18,7 +18,8 @@
  */
 package org.apache.sling.validation.impl.util;
 
-import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Implements a Trie node.
@@ -27,12 +28,12 @@ public class TrieNode<T> {
 
     private char character;
     private T value;
-    private HashMap<Character, TrieNode<T>> children;
+    private Map<Character, TrieNode<T>> children;
     private boolean isLeaf;
 
     TrieNode(char ch) {
         character = ch;
-        children = new HashMap<Character, TrieNode<T>>();
+        children = new ConcurrentHashMap<Character, TrieNode<T>>();
         isLeaf = false;
     }
 
@@ -48,7 +49,7 @@ public class TrieNode<T> {
         this.value = value;
     }
 
-    public HashMap<Character, TrieNode<T>> getChildren() {
+    public Map<Character, TrieNode<T>> getChildren() {
         return children;
     }
 

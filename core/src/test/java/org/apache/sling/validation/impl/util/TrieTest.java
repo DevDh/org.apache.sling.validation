@@ -30,31 +30,14 @@ public class TrieTest {
     @Before
     public void setUp() {
         dictionary = new Trie<Object>();
-    }
-
-    @Test
-    public void testTrieWithRegularStrings() {
-        dictionary.insert("app", "app");
-        dictionary.insert("apple", "apple");
-        TrieNode<Object> node;
-
-        node = dictionary.getElementForLongestMatchingKey("apples");
-        assertTrue("apple".equals(node.getValue()));
-
-        node = dictionary.getElementForLongestMatchingKey("apps");
-        assertTrue("app".equals(node.getValue()));
-
-        node = dictionary.getElementForLongestMatchingKey("ap");
-        assertTrue(node.getValue() == null);
-    }
-
-    @Test
-    public void testTrieWithJCRPaths() throws Exception {
         dictionary.insert("/apps/example", "/apps/example");
         dictionary.insert("/apps/examples/node/jcr:content", "/apps/examples/node/jcr:content");
         dictionary.insert("/apps/examples/node/jcr:content/nodes", "/apps/examples/node/jcr:content/nodes");
-        TrieNode<Object> node;
+    }
 
+    @Test
+    public void testLongestMatchingKey() throws Exception {
+        TrieNode<Object> node;
         node = dictionary.getElementForLongestMatchingKey("/apps/examples/node/jcr:content/nodes/1");
         assertTrue("/apps/examples/node/jcr:content/nodes".equals(node.getValue()));
 
@@ -63,6 +46,20 @@ public class TrieTest {
 
         node = dictionary.getElementForLongestMatchingKey("/libs");
         assertTrue(node.getValue() == null);
+    }
+
+    @Test
+    public void testExactKey() {
+        TrieNode<Object> node;
+
+        node = dictionary.getElement("/apps/examples/node/jcr:content/nodes");
+        assertTrue("/apps/examples/node/jcr:content/nodes".equals(node.getValue()));
+
+        node = dictionary.getElement("/apps/example");
+        assertTrue("/apps/example".equals(node.getValue()));
+
+        node = dictionary.getElement("/libs");
+        assertTrue(dictionary.ROOT.equals(node));
     }
 
 }

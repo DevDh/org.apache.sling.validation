@@ -18,26 +18,34 @@
  */
 package org.apache.sling.validation.impl.validators;
 
-import java.util.List;
-import java.util.regex.Pattern;
-
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.validation.api.Validator;
-import org.apache.sling.validation.api.ValidatorArgument;
+import org.apache.sling.validation.api.exceptions.ValidatorException;
 
-@Component(metatype = true, label = "%alphacharactersvalidator.label", description = "%alphacharactersvalidator.description")
-@Service(Validator.class)
+import java.util.Map;
+import java.util.regex.Pattern;
+
 /**
- * The {@code AlphaCharactersValidator} validates that a {@link String} contains only letters, from any kind of language.
+ * Performs regular expressions validation on the supplied data with the help of the {@link Pattern} class. This {@code Validator} expects a
+ * mandatory parameter in the arguments map: {@link RegexValidator#REGEX_PARAM}.
  */
-public class AlphaCharactersValidator implements Validator {
+@Component()
+@Service(Validator.class)
+public class RegexValidator implements Validator {
 
-    private static final String LETTERS_ONLY_REGEX = "^\\p{L}+$";
-    private static final Pattern pattern = Pattern.compile(LETTERS_ONLY_REGEX);
+    public static final String REGEX_PARAM = "regex";
 
     @Override
-    public boolean validate(String data, List<ValidatorArgument> arguments) {
+    public boolean validate(String data, Map<String, String> arguments) throws ValidatorException {
+        if (data == null || arguments == null) {
+            throw new ValidatorException("Cannot perform data validation with null parameters");
+        }
+        String regex = arguments.get(REGEX_PARAM);
+        if (regex == null) {
+            throw new ValidatorException("Mandatory " + REGEX_PARAM + " is missing from the arguments map.");
+        }
+        Pattern pattern = Pattern.compile(regex);
         return pattern.matcher(data).matches();
     }
 }

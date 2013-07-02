@@ -21,7 +21,6 @@ package org.apache.sling.validation.impl;
 import org.apache.sling.validation.api.Field;
 import org.apache.sling.validation.api.Type;
 import org.apache.sling.validation.api.Validator;
-import org.apache.sling.validation.api.ValidatorArgument;
 
 import java.util.List;
 import java.util.Map;
@@ -30,9 +29,9 @@ public class FieldImpl implements Field {
 
     private String name;
     private Type type;
-    private Map<Validator, List<ValidatorArgument>> validators;
+    private Map<Validator, Map<String, String>> validators;
 
-    public FieldImpl(String name, Type type, Map<Validator, List<ValidatorArgument>> validators) {
+    public FieldImpl(String name, Type type, Map<Validator, Map<String, String>> validators) {
         this.name = name;
         this.type = type;
         this.validators = validators;
@@ -46,7 +45,7 @@ public class FieldImpl implements Field {
         return type;
     }
 
-    public Map<Validator, List<ValidatorArgument>> getValidators() {
+    public Map<Validator, Map<String, String>> getValidators() {
         return validators;
     }
 }

@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
+import java.util.Map;
 
 public class ValidationPostResponse extends AbstractPostResponse {
 
@@ -46,9 +48,10 @@ public class ValidationPostResponse extends AbstractPostResponse {
         boolean validationError = false;
         if (validationResult != null) {
             try {
-                String failureMessage = validationResult.getValidationResultFailureMessage();
                 jsonResponse.put("valid", validationResult.isValid());
-                jsonResponse.put("failureMessage", failureMessage != null ? failureMessage : "");
+                for (Map.Entry<String, List<String>> entry : validationResult.getFailureMessages().entrySet()) {
+                    jsonResponse.put(entry.getKey(), entry.getValue());
+                }
             } catch (JSONException e) {
                 LOG.error("JSON error during response send operation.", e);
             }

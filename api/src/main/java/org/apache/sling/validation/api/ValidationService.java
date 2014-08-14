@@ -18,6 +18,8 @@
  */
 package org.apache.sling.validation.api;
 
+import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ValueMap;
 
 /**
@@ -26,7 +28,7 @@ import org.apache.sling.api.resource.ValueMap;
 public interface ValidationService {
 
     /**
-     * Tries to locate a {@link ValidationModel} that is able to validate a {@code Resource} of type {@code validatedResourceType}.
+     * Tries to obtain a {@link ValidationModel} that is able to validate a {@code Resource} of type {@code validatedResourceType}.
      *
      * @param validatedResourceType the type of {@code Resources} the model validates
      * @param applicablePath        the model's applicable path (the path of the validated resource)
@@ -35,12 +37,31 @@ public interface ValidationService {
     ValidationModel getValidationModel(String validatedResourceType, String applicablePath);
 
     /**
-     * Validates a {@link ValueMap} using a specific {@link ValidationModel}.
+     * Tries to obtain a {@link ValidationModel} that is able to validate the given {@code resource}.
      *
-     * @param valueMap the map to validate
+     * @param resource the resource for which to obtain a validation model
+     * @return a {@code ValidationModel} if one is found, {@code null} otherwise
+     */
+    ValidationModel getValidationModel(Resource resource);
+
+    /**
+     * Validates a {@link Resource} using a specific {@link ValidationModel}. If the {@code model} describes a resource tree,
+     * the {@link ResourceResolver} associated with the {@code resource} will be used for retrieving information about the {@code
+     * resource}'s descendants.
+     *
+     * @param resource the resource to validate
      * @param model    the model with which to perform the validation
      * @return a {@link ValidationResult} that provides the necessary information
-     * @throws NullPointerException if either one of the two parameters are null
      */
-    ValidationResult validate(ValueMap valueMap, ValidationModel model) throws NullPointerException;
+    ValidationResult validate(Resource resource, ValidationModel model);
+
+    /**
+     * Validates a {@link ValueMap} or any object adaptable to a {@code ValueMap} using a specific {@link ValidationModel}. Since the
+     * {@code valueMap} only contains the direct properties of the adapted object, the {@code model}'s descendants description should not
+     * be queried for this validation operation.
+     *
+     * @param valueMap the map to validate
+     * @return a {@link ValidationResult} that provides the necessary information
+     */
+    ValidationResult validate(ValueMap valueMap, ValidationModel model);
 }

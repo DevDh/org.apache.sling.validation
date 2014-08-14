@@ -16,24 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.sling.validation.api;
-
-import java.util.Map;
-
-import org.apache.sling.validation.api.exceptions.SlingValidationException;
+package org.apache.sling.validation.api.exceptions;
 
 /**
- * A {@code Validator} is responsible for validating a single piece of information according to an internal constraint.
+ * Exception that is thrown for Validator inconsistencies.
  */
-public interface Validator {
+public class SlingValidationException extends RuntimeException {
 
-    /**
-     * Validates the {@code data} according to the internal constraints of this validator.
-     *
-     * @param data the data to validate
-     * @return {@code true} if the data is valid, {@code false} otherwise
-     * @throws org.apache.sling.validation.api.exceptions.SlingValidationException if the method is called with {@code null} arguments or
-     * some expected arguments are missing from the arguments map
-     */
-    boolean validate(String data, Map<String, String> arguments) throws SlingValidationException;
+    public SlingValidationException(String message) {
+        super(message);
+    }
+
 }

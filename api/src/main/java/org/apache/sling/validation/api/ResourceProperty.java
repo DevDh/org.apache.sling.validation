@@ -21,26 +21,33 @@ package org.apache.sling.validation.api;
 import java.util.Map;
 
 /**
- * Describes a form field / property.
+ * Describes a {@link org.apache.sling.api.resource.Resource} property.
  */
-public interface Field {
+public interface ResourceProperty {
 
     /**
-     * Returns the name of this field / property.
+     * Returns the name of this property.
      *
      * @return the name
      */
     String getName();
 
     /**
-     * Returns the type of data this field should contain.
+     * Returns the type of data this property should contain.
      *
      * @return the type
      */
     Type getType();
 
     /**
-     * Returns a map containing the validators that should be applied to this field together with the arguments for each validator, also
+     * Returns {@code true} if this property is expected to be a multiple property (e.g. array of values).
+     *
+     * @return {@code true} if the  property is multiple, {@code false} otherwise
+     */
+    boolean isMultiple();
+
+    /**
+     * Returns a map containing the validators that should be applied to this property together with the arguments for each validator, also
      * stored in a key-value map.
      *
      * @return the validators

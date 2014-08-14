@@ -39,6 +39,7 @@ public class ValidationServiceTest extends SlingTestBase {
         MultipartEntity entity = new MultipartEntity();
         entity.addPart("sling:resourceType", new StringBody("validation/test/resourceType1"));
         entity.addPart("field1", new StringBody("HelloWorld"));
+        entity.addPart("field2", new StringBody("30.01.1988"));
         entity.addPart(SlingPostConstants.RP_OPERATION, new StringBody("validation"));
         RequestExecutor re = getRequestExecutor().execute(getRequestBuilder().buildPostRequest
                 ("/validation/testing/fakeFolder1/resource").withEntity(entity)).assertStatus(200);

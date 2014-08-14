@@ -21,7 +21,7 @@ package org.apache.sling.validation.impl.validators;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.validation.api.Validator;
-import org.apache.sling.validation.api.exceptions.ValidatorException;
+import org.apache.sling.validation.api.exceptions.SlingValidationException;
 
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -37,13 +37,13 @@ public class RegexValidator implements Validator {
     public static final String REGEX_PARAM = "regex";
 
     @Override
-    public boolean validate(String data, Map<String, String> arguments) throws ValidatorException {
+    public boolean validate(String data, Map<String, String> arguments) {
         if (data == null || arguments == null) {
-            throw new ValidatorException("Cannot perform data validation with null parameters");
+            throw new SlingValidationException("Cannot perform data validation with null parameters");
         }
         String regex = arguments.get(REGEX_PARAM);
         if (regex == null) {
-            throw new ValidatorException("Mandatory " + REGEX_PARAM + " is missing from the arguments map.");
+            throw new SlingValidationException("Mandatory " + REGEX_PARAM + " is missing from the arguments map.");
         }
         Pattern pattern = Pattern.compile(regex);
         return pattern.matcher(data).matches();

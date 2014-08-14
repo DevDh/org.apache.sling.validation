@@ -16,19 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.sling.validation.api.exceptions;
+package org.apache.sling.validation.api;
+
+import java.util.Set;
 
 /**
- * Exception that is thrown for Validator inconsistencies.
+ * Defines the validation rules for a child resource, allowing {@link ValidationModel}s to be applied to {@link
+ * org.apache.sling.api.resource.Resource} trees.
  */
-public class ValidatorException extends Exception {
+public interface ChildResource {
 
-    public ValidatorException() {
-        super();
-    }
+    /**
+     * Return this resource's name.
+     *
+     * @return the name
+     */
+    String getName();
 
-    public ValidatorException(String message) {
-        super(message);
-    }
-
+    /**
+     * Returns the properties this child resource is expected to have.
+     *
+     * @return the properties set
+     */
+    Set<ResourceProperty> getProperties();
 }

@@ -22,10 +22,13 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.apache.sling.validation.api.exceptions.NonExistingTypeException;
+
 /**
- * Defines the type of value stored in a {@link Field}.
+ * Defines value types stored in a {@link ResourceProperty}.
  */
 public enum Type {
+
     BOOLEAN("boolean"),
     DATE("date"),
     INT("int"),
@@ -34,14 +37,25 @@ public enum Type {
     FLOAT("float"),
     CHAR("char"),
     STRING("string");
-    final static SimpleDateFormat[] SLING_FORMATS = new SimpleDateFormat[]{
-            new SimpleDateFormat("EEE MMM dd yyyy HH:mm:ss 'GMT'Z"),
-            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
-            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"),
-            new SimpleDateFormat("yyyy-MM-dd"),
-            new SimpleDateFormat("dd.MM.yyyy HH:mm:ss"),
-            new SimpleDateFormat("dd.MM.yyyy")
+
+    /**
+     * optimises usage of the SimpleDateFormatter since multiple date validations can occur per thread
+     */
+    private static final ThreadLocal<SimpleDateFormat[]> FORMATTERS_THREAD_LOCAL = new ThreadLocal<SimpleDateFormat[]>() {
+
+        protected SimpleDateFormat[] initialValue() {
+            return new SimpleDateFormat[]{
+                    new SimpleDateFormat("EEE MMM dd yyyy HH:mm:ss 'GMT'Z"),
+                    new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                    new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"),
+                    new SimpleDateFormat("yyyy-MM-dd"),
+                    new SimpleDateFormat("dd.MM.yyyy HH:mm:ss"),
+                    new SimpleDateFormat("dd.MM.yyyy")
+            };
+        }
+
     };
+
     private String name;
 
     private Type(String name) {
@@ -67,10 +81,10 @@ public enum Type {
         boolean valid = false;
         switch (this) {
             case BOOLEAN:
-                valid = "true".equalsIgnoreCase(data) || "false".equalsIgnoreCase(data);
+                valid = Boolean.parseBoolean(data);
                 break;
             case DATE:
-                for (SimpleDateFormat sdf : SLING_FORMATS) {
+                for (SimpleDateFormat sdf : FORMATTERS_THREAD_LOCAL.get()) {
                     Date d = null;
                     try {
                         d = sdf.parse(data);
@@ -135,15 +149,13 @@ public enum Type {
      * @return the constant, if found; <code>null</code> otherwise
      */
     public static Type getType(String value) {
-        Type type = null;
         if (value != null) {
             for (Type t : Type.values()) {
                 if (value.equals(t.getName())) {
-                    type = t;
-                    break;
+                    return t;
                 }
             }
         }
-        return type;
+        throw new NonExistingTypeException(String.format("Type %s is not defined.", value));
     }
 }

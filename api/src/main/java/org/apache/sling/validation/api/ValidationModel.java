@@ -18,22 +18,20 @@
  */
 package org.apache.sling.validation.api;
 
-import org.apache.sling.api.resource.ValueMap;
-
+import java.util.List;
 import java.util.Set;
 
 /**
- * A {@code ValidationModel} is responsible for checking that a {@link ValueMap}'s values are valid according to the model's internal
- * representation.
+ * A {@code ValidationModel} defines the validation rules that a resource tree has to pass.
  */
 public interface ValidationModel {
 
     /**
-     * Returns the fields validated by this model.
+     * Returns the properties validated by this model.
      *
-     * @return the fields set
+     * @return the properties set
      */
-    Set<Field> getFields();
+    Set<ResourceProperty> getResourceProperties();
 
     /**
      * Returns the type of resource this model validates.
@@ -48,4 +46,12 @@ public interface ValidationModel {
      * @return a path array
      */
     String[] getApplicablePaths();
+
+    /**
+     * Returns the expected children for a resource validated by this model.
+     *
+     * @return the children list (can be empty if there are no children)
+     */
+    List<ChildResource> getChildren();
+
 }

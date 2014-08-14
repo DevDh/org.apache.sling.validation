@@ -18,16 +18,22 @@
  */
 package org.apache.sling.validation.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.sling.validation.api.ValidationResult;
 
 public class ValidationResultImpl implements ValidationResult {
 
-    private String validationResultFailureMessage;
+    private Map<String, List<String>> failureMessages;
     private boolean isValid;
 
-    public ValidationResultImpl(String validationResultFailureMessage, boolean isValid) {
-        this.isValid = isValid;
-        this.validationResultFailureMessage = validationResultFailureMessage;
+    public ValidationResultImpl() {
+        isValid = true;
+        failureMessages = new HashMap<String, List<String>>();
     }
 
     @Override
@@ -36,7 +42,17 @@ public class ValidationResultImpl implements ValidationResult {
     }
 
     @Override
-    public String getValidationResultFailureMessage() {
-        return validationResultFailureMessage;
+    public Map<String, List<String>> getFailureMessages() {
+        return Collections.unmodifiableMap(failureMessages);
+    }
+
+    public void addFailureMessage(String property, String failureMessage) {
+        List<String> propertyMessages = failureMessages.get(property);
+        if (propertyMessages == null) {
+            propertyMessages = new ArrayList<String>();
+            failureMessages.put(property, propertyMessages);
+        }
+        propertyMessages.add(failureMessage);
+        isValid = false;
     }
 }

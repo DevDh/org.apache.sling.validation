@@ -18,8 +18,11 @@
  */
 package org.apache.sling.validation.api;
 
+import java.util.List;
+import java.util.Map;
+
 /**
- * A {@code ValidationResult} contains validation information about a validated property.
+ * A {@code ValidationResult} contains validation information about a validated property / child resource.
  */
 public interface ValidationResult {
 
@@ -31,10 +34,11 @@ public interface ValidationResult {
     boolean isValid();
 
     /**
-     * In case the validation failed (check the {@link ValidationResult#isValid()} method), this method
-     * returns the failure's cause.
+     * In case the validation failed (check the {@link ValidationResult#isValid()} method), this method returns the failure's causes. The
+     * keys of the returned {@link Map} will contain the validated resource's properties (or child resources' properties) names; the
+     * associated values will be the actual failure messages.
      *
-     * @return the validation's failure message
+     * @return the validation's failure messages
      */
-    String getValidationResultFailureMessage();
+    Map<String, List<String>> getFailureMessages();
 }

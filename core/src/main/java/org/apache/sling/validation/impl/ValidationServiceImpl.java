@@ -30,14 +30,16 @@ import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.apache.sling.commons.threads.ThreadPool;
 import org.apache.sling.commons.threads.ThreadPoolManager;
-import org.apache.sling.validation.api.Field;
+import org.apache.sling.validation.api.ChildResource;
+import org.apache.sling.validation.api.ResourceProperty;
 import org.apache.sling.validation.api.Type;
 import org.apache.sling.validation.api.ValidationModel;
 import org.apache.sling.validation.api.ValidationResult;
 import org.apache.sling.validation.api.ValidationService;
 import org.apache.sling.validation.api.Validator;
 import org.apache.sling.validation.api.ValidatorLookupService;
-import org.apache.sling.validation.api.exceptions.ValidatorException;
+import org.apache.sling.validation.api.exceptions.SlingValidationException;
+import org.apache.sling.validation.impl.util.JCRBuilder;
 import org.apache.sling.validation.impl.util.Trie;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.service.component.ComponentContext;
@@ -49,10 +51,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.jcr.query.Query;
 import java.util.Dictionary;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,15 +63,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ValidationServiceImpl implements ValidationService, EventHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(ValidationServiceImpl.class);
-    static final String VALIDATED_RESOURCE_TYPE = "validatedResourceType";
-    static final String APPLICABLE_PATHS = "applicablePaths";
-    static final String MODELS_HOME = "sling/validation/models/";
-    static final String MODEL_XPATH_QUERY = "/jcr:root/%s/" + MODELS_HOME + "*[@sling:resourceType=\"%s\" and @%s=\"%s\"]";
-    static final String VALIDATION_MODEL_RESOURCE_TYPE = "sling/validation/model";
-    static final String FIELDS = "fields";
-    static final String FIELD_TYPE = "fieldType";
-    static final String VALIDATORS = "validators";
-    static final String VALIDATOR_ARGUMENTS = "validatorArguments";
+
+    static final String MODEL_XPATH_QUERY = "/jcr:root/%s/" + Constants.MODELS_HOME + "*[@sling:resourceType=\"%s\" and @%s=\"%s\"]";
     static final String[] TOPICS = {SlingConstants.TOPIC_RESOURCE_REMOVED, SlingConstants.TOPIC_RESOURCE_CHANGED,
             SlingConstants.TOPIC_RESOURCE_ADDED};
 
@@ -79,14 +73,15 @@ public class ValidationServiceImpl implements ValidationService, EventHandler {
     private ServiceRegistration eventHandlerRegistration;
 
     @Reference
-    private ResourceResolverFactory rrf;
+    private ResourceResolverFactory rrf = null;
 
     @Reference
-    private ValidatorLookupService validatorLookupService;
+    private ValidatorLookupService validatorLookupService = null;
 
     @Reference
-    private ThreadPoolManager tpm;
+    private ThreadPoolManager tpm = null;
 
+    // ValidationService ###################################################################################################################
     @Override
     public ValidationModel getValidationModel(String validatedResourceType, String resourcePath) {
         ValidationModel model = null;
@@ -104,70 +99,72 @@ public class ValidationServiceImpl implements ValidationService, EventHandler {
     }
 
     @Override
-    public ValidationResult validate(ValueMap valueMap, ValidationModel model) {
-        ValidationResult result = new ValidationResultImpl("", true);
-        if (valueMap == null || model == null) {
-            throw new NullPointerException("ValidationResult.validate - cannot accept null parameters");
-        }
-        for (Field field : model.getFields()) {
-            String fieldName = field.getName();
-            Object fieldValues = valueMap.get(fieldName);
-            if (fieldValues == null) {
-                result = new ValidationResultImpl("Required field " + fieldName + " was not found.", false);
-                break;
-            }
-            Type fieldType = field.getType();
-            if (fieldValues instanceof String[]) {
-                for (String fieldValue : (String[]) fieldValues) {
-                    if (!fieldType.isValid(fieldValue)) {
-                        result = new ValidationResultImpl("Field " + fieldName + " was expected to be of type " + fieldType.getName(), false);
-                        break;
-                    }
-                    Map<Validator, Map<String, String>> validators = field.getValidators();
-                    for (Map.Entry<Validator, Map<String, String>> validatorEntry : validators.entrySet()) {
-                        Validator validator = validatorEntry.getKey();
-                        Map<String, String> arguments = validatorEntry.getValue();
-                        try {
-                            if (!validator.validate(fieldValue, arguments)) {
-                                result = new ValidationResultImpl("Field " + fieldName + " does not contain a valid value for the " + validator
-                                        .getClass().getName() + " validator", false);
-                                return result;
-                            }
-                        } catch (ValidatorException e) {
-                            LOG.error("ValidatorException for field " + fieldName, e);
-                            result = new ValidationResultImpl("", false);
-                            return result;
-                        }
-                    }
-                }
-            } else if (fieldValues instanceof String) {
-                String fieldValue = (String) fieldValues;
-                if (!fieldType.isValid(fieldValue)) {
-                    result = new ValidationResultImpl("Field " + fieldName + " was expected to be of type " + fieldType.getName(), false);
-                    break;
-                }
-                Map<Validator, Map<String, String>> validators = field.getValidators();
-                for (Map.Entry<Validator, Map<String, String>> validatorEntry : validators.entrySet()) {
-                    Validator validator = validatorEntry.getKey();
-                    Map<String, String> arguments = validatorEntry.getValue();
-                    try {
-                        if (!validator.validate(fieldValue, arguments)) {
-                            result = new ValidationResultImpl("Field " + fieldName + " does not contain a valid value for the " + validator
-                                    .getClass().getName() + " validator", false);
-                            return result;
-                        }
-                    } catch (ValidatorException e) {
-                        LOG.error("ValidatorException for field " + fieldName, e);
-                        result = new ValidationResultImpl("", false);
-                        return result;
-                    }
-                }
-            }
+    public ValidationModel getValidationModel(Resource resource) {
+        return getValidationModel(resource.getResourceType(), resource.getPath());
+    }
 
+    @Override
+    public ValidationResult validate(Resource resource, ValidationModel model) {
+        if (resource == null || model == null) {
+            throw new IllegalArgumentException("ValidationResult.validate - cannot accept null parameters");
+        }
+        ValidationResultImpl result = new ValidationResultImpl();
+
+        // validate direct properties of the resource
+        validateResourceProperties(resource, resource, model.getResourceProperties(), result);
+
+        // validate children resources, if any
+        for (ChildResource childResource : model.getChildren()) {
+            Resource expectedResource = resource.getChild(childResource.getName());
+            if (expectedResource != null) {
+                validateResourceProperties(resource, expectedResource, childResource.getProperties(), result);
+            } else {
+                result.addFailureMessage(childResource.getName(), "Missing required child resource.");
+            }
         }
         return result;
     }
 
+    @Override
+    public ValidationResult validate(ValueMap valueMap, ValidationModel model) {
+        if (valueMap == null || model == null) {
+            throw new IllegalArgumentException("ValidationResult.validate - cannot accept null parameters");
+        }
+        ValidationResultImpl result = new ValidationResultImpl();
+        for (ResourceProperty resourceProperty : model.getResourceProperties()) {
+            String property = resourceProperty.getName();
+            Object valuesObject = valueMap.get(property);
+            if (valuesObject == null) {
+                result.addFailureMessage(property, "Missing required property.");
+            }
+            Type propertyType = resourceProperty.getType();
+            Map<Validator, Map<String, String>> validators = resourceProperty.getValidators();
+            if (resourceProperty.isMultiple()) {
+                if (valuesObject instanceof String[]) {
+                    for (String fieldValue : (String[]) valuesObject) {
+                        validatePropertyValue(result, property, fieldValue, propertyType, validators);
+                    }
+                } else {
+                    result.addFailureMessage(property, "Expected multiple-valued property.");
+                }
+            } else {
+                if (valuesObject instanceof String[]) {
+                    // treat request attributes which are arrays
+                    String[] fieldValues = (String[]) valuesObject;
+                    if (fieldValues.length == 1) {
+                        validatePropertyValue(result, property, fieldValues[0], propertyType, validators);
+                    } else {
+                        result.addFailureMessage(property, "Expected single-valued property.");
+                    }
+                } else if (valuesObject instanceof String) {
+                    validatePropertyValue(result, property, (String) valuesObject, propertyType, validators);
+                }
+            }
+        }
+        return result;
+    }
+
+    // EventHandler ########################################################################################################################
     @Override
     public void handleEvent(Event event) {
         Runnable task = new Runnable() {
@@ -179,6 +176,80 @@ public class ValidationServiceImpl implements ValidationService, EventHandler {
         threadPool.execute(task);
     }
 
+    // OSGi ################################################################################################################################
+    @SuppressWarnings("unused")
+    protected void activate(ComponentContext componentContext) {
+        threadPool = tpm.get("Validation Service Thread Pool");
+        ResourceResolver rr = null;
+        try {
+            rr = rrf.getAdministrativeResourceResolver(null);
+        } catch (LoginException e) {
+            LOG.error("Cannot obtain a resource resolver.");
+        }
+        if (rr != null) {
+            StringBuilder sb = new StringBuilder("(");
+            String[] searchPaths = rr.getSearchPath();
+            if (searchPaths.length > 1) {
+                sb.append("|");
+            }
+            for (String searchPath : searchPaths) {
+                if (searchPath.endsWith("/")) {
+                    searchPath = searchPath.substring(0, searchPath.length() - 1);
+                }
+                String path = searchPath + "/" + Constants.MODELS_HOME;
+                sb.append("(path=").append(path).append("*)");
+            }
+            sb.append(")");
+            Dictionary<String, Object> eventHandlerProperties = new Hashtable<String, Object>();
+            eventHandlerProperties.put(EventConstants.EVENT_TOPIC, TOPICS);
+            eventHandlerProperties.put(EventConstants.EVENT_FILTER, sb.toString());
+            eventHandlerRegistration = componentContext.getBundleContext().registerService(EventHandler.class.getName(), this,
+                    eventHandlerProperties);
+            rr.close();
+        } else {
+            LOG.warn("Null resource resolver. Cannot apply path filtering for event processing. Skipping registering this service as an " +
+                    "EventHandler");
+        }
+    }
+
+    @SuppressWarnings("unused")
+    protected void deactivate(ComponentContext componentContext) {
+        if (threadPool != null) {
+            tpm.release(threadPool);
+        }
+        if (eventHandlerRegistration != null) {
+            eventHandlerRegistration.unregister();
+            eventHandlerRegistration = null;
+        }
+    }
+
+    private void validateResourceProperties(Resource rootResource, Resource resource, Set<ResourceProperty> resourceProperties,
+                                            ValidationResultImpl result) {
+        for (ResourceProperty resourceProperty : resourceProperties) {
+            String property = resourceProperty.getName();
+            ValueMap valueMap = resource.adaptTo(ValueMap.class);
+            Object fieldValues = valueMap.get(property);
+            String relativePath = resource.getPath().replace(rootResource.getPath(), "");
+            if (relativePath.length() > 0) {
+                if (relativePath.startsWith("/")) {
+                    relativePath = relativePath.substring(1);
+                }
+                property = relativePath + "/" + property;
+            }
+            if (fieldValues == null) {
+                result.addFailureMessage(property, "Missing required property.");
+            }
+            Type propertyType = resourceProperty.getType();
+            Map<Validator, Map<String, String>> validators = resourceProperty.getValidators();
+            if (fieldValues instanceof String[]) {
+                for (String fieldValue : (String[]) fieldValues) {
+                    validatePropertyValue(result, property, fieldValue, propertyType, validators);
+                }
+            } else if (fieldValues instanceof String) {
+                validatePropertyValue(result, property, (String) fieldValues, propertyType, validators);
+            }
+        }
+    }
 
     /**
      * Searches for valid validation models in the JCR repository for a certain resource type. All validation models will be returned in a
@@ -219,53 +290,23 @@ public class ValidationServiceImpl implements ValidationService, EventHandler {
                 if (searchPath.endsWith("/")) {
                     searchPath = searchPath.substring(0, searchPath.length() - 1);
                 }
-                final String queryString = String.format(MODEL_XPATH_QUERY, searchPath, VALIDATION_MODEL_RESOURCE_TYPE,
-                        VALIDATED_RESOURCE_TYPE, validatedResourceType);
+                final String queryString = String.format(MODEL_XPATH_QUERY, searchPath, Constants.VALIDATION_MODEL_RESOURCE_TYPE,
+                        Constants.VALIDATED_RESOURCE_TYPE, validatedResourceType);
                 Iterator<Resource> models = rr.findResources(queryString, Query.XPATH);
                 while (models.hasNext()) {
                     Resource model = models.next();
+                    LOG.info("Found validation model resource {}.", model.getPath());
                     String jcrPath = model.getPath();
                     ValueMap validationModelProperties = model.adaptTo(ValueMap.class);
-                    String[] applicablePaths = PropertiesUtil.toStringArray(validationModelProperties.get(APPLICABLE_PATHS,
+                    String[] applicablePaths = PropertiesUtil.toStringArray(validationModelProperties.get(Constants.APPLICABLE_PATHS,
                             String[].class));
-                    Set<Field> fields = new HashSet<Field>();
                     if (validatedResourceType != null && !"".equals(validatedResourceType)) {
-                        Resource r = model.getChild(FIELDS);
+                        Resource r = model.getChild(Constants.PROPERTIES);
                         if (r != null) {
-                            Iterator<Resource> fieldsIterator = r.listChildren();
-                            while (fieldsIterator.hasNext()) {
-                                Resource field = fieldsIterator.next();
-                                ValueMap fieldProperties = field.adaptTo(ValueMap.class);
-                                String fieldName = field.getName();
-                                Type type = Type.getType(fieldProperties.get(FIELD_TYPE, String.class));
-                                Resource validators = field.getChild(VALIDATORS);
-                                Map<Validator, Map<String, String>> validatorsMap = new HashMap<Validator, Map<String, String>>();
-                                if (validators != null) {
-                                    Iterator<Resource> validatorsIterator = validators.listChildren();
-                                    while (validatorsIterator.hasNext()) {
-                                        Resource validator = validatorsIterator.next();
-                                        ValueMap validatorProperties = validator.adaptTo(ValueMap.class);
-                                        String validatorName = validator.getName();
-                                        Validator v = validatorLookupService.getValidator(validatorName);
-                                        String[] validatorArguments = validatorProperties.get(VALIDATOR_ARGUMENTS, String[].class);
-                                        Map<String, String> validatorArgumentsMap = new HashMap<String, String>();
-                                        if (validatorArguments != null) {
-                                            for (String arg : validatorArguments) {
-                                                String[] keyValuePair = arg.split("=");
-                                                if (keyValuePair.length != 2) {
-                                                    continue;
-                                                }
-                                                validatorArgumentsMap.put(keyValuePair[0], keyValuePair[1]);
-                                            }
-                                        }
-                                        validatorsMap.put(v, validatorArgumentsMap);
-                                    }
-                                }
-                                Field f = new FieldImpl(fieldName, type, validatorsMap);
-                                fields.add(f);
-                            }
-                            if (!fields.isEmpty()) {
-                                vm = new JCRValidationModel(jcrPath, fields, validatedResourceType, applicablePaths);
+                            Set<ResourceProperty> resourceProperties = JCRBuilder.buildProperties(validatorLookupService, r);
+                            if (!resourceProperties.isEmpty()) {
+                                List<ChildResource> children = JCRBuilder.buildChildren(model, model, validatorLookupService);
+                                vm = new JCRValidationModel(jcrPath, resourceProperties, validatedResourceType, applicablePaths, children);
                                 modelsForResourceType = validationModelsCache.get(validatedResourceType);
                                 /**
                                  * if the modelsForResourceType is null the canAcceptModel will return true: performance optimisation so that
@@ -299,7 +340,7 @@ public class ValidationServiceImpl implements ValidationService, EventHandler {
      * Checks if the {@code validationModel} does not override an existing stored model given the fact that the overlaying is done based on
      * the order in which the search paths are in the {@code searchPaths} array: the lower the index, the higher the priority.
      *
-     * @param validationModel the model to be checked
+     * @param validationModel   the model to be checked
      * @param currentSearchPath the current search path
      * @param searchPaths       the available search paths
      * @param validationModels  the existing validation models
@@ -327,48 +368,23 @@ public class ValidationServiceImpl implements ValidationService, EventHandler {
         return true;
     }
 
-    // OSGi ################################################################################################################################
-    protected void activate(ComponentContext componentContext) {
-        threadPool = tpm.get("Validation Service Thread Pool");
-        ResourceResolver rr = null;
-        try {
-            rr = rrf.getAdministrativeResourceResolver(null);
-        } catch (LoginException e) {
-            LOG.error("Cannot obtain a resource resolver.");
+    private void validatePropertyValue(ValidationResultImpl result, String property, String value, Type propertyType, Map<Validator,
+            Map<String, String>> validators) {
+        if (!propertyType.isValid(value)) {
+            result.addFailureMessage(property, "Property was expected to be of type " + propertyType.getName());
         }
-        if (rr != null) {
-            StringBuilder sb = new StringBuilder("(");
-            String[] searchPaths = rr.getSearchPath();
-            if (searchPaths.length > 1) {
-                sb.append("|");
-            }
-            for (String searchPath : searchPaths) {
-                if (searchPath.endsWith("/")) {
-                    searchPath = searchPath.substring(0, searchPath.length() - 1);
+        for (Map.Entry<Validator, Map<String, String>> validatorEntry : validators.entrySet()) {
+            Validator validator = validatorEntry.getKey();
+            Map<String, String> arguments = validatorEntry.getValue();
+            try {
+                if (!validator.validate(value, arguments)) {
+                    result.addFailureMessage(property, "Property does not contain a valid value for the " + validator
+                            .getClass().getName() + " validator");
                 }
-                String path = searchPath + "/" + MODELS_HOME;
-                sb.append("(path=" + path + "*)");
+            } catch (SlingValidationException e) {
+                LOG.error("SlingValidationException for resourceProperty " + property, e);
+                result.addFailureMessage(property, "Validator " + validator.getClass() + "encountered a problem: " + e.getMessage());
             }
-            sb.append(")");
-            Dictionary<String, Object> eventHandlerProperties = new Hashtable<String, Object>();
-            eventHandlerProperties.put(EventConstants.EVENT_TOPIC, TOPICS);
-            eventHandlerProperties.put(EventConstants.EVENT_FILTER, sb.toString());
-            eventHandlerRegistration = componentContext.getBundleContext().registerService(EventHandler.class.getName(), this,
-                    eventHandlerProperties);
-            rr.close();
-        } else {
-            LOG.warn("Null resource resolver. Cannot apply path filtering for event processing. Skipping registering this service as an " +
-                    "EventHandler");
-        }
-    }
-
-    protected void deactivate(ComponentContext componentContext) {
-        if (threadPool != null) {
-            tpm.release(threadPool);
-        }
-        if (eventHandlerRegistration != null) {
-            eventHandlerRegistration.unregister();
-            eventHandlerRegistration = null;
         }
     }
 }

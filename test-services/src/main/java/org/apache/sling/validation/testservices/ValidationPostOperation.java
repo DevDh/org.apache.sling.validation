@@ -60,7 +60,6 @@ public class ValidationPostOperation extends AbstractPostOperation {
         if (response instanceof ValidationPostResponse) {
             ValidationPostResponse vpr = (ValidationPostResponse) response;
             ValueMap requestParameters = request.adaptTo(ValueMap.class);
-            JSONObject json = new JSONObject();
             String[] resourceTypeValues = requestParameters.get("sling:resourceType", String[].class);
             String resourceType = null;
             if (resourceTypeValues != null && resourceTypeValues.length > 0) {
@@ -72,6 +71,8 @@ public class ValidationPostOperation extends AbstractPostOperation {
                 if (vm != null) {
                     ValidationResult vr = validationService.validate(requestParameters, vm);
                     vpr.setValidationResult(vr);
+                } else {
+                    LOG.error("No validation model for resourceType {} and resourcePath {} ", resourceType, resourcePath);
                 }
             }
         }

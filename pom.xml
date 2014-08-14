@@ -37,7 +37,7 @@
         <url>https://github.com/raducotescu/org.apache.sling.validation</url>
     </scm>
 
-    <name>Apache Sling Validation Framework Reactor</name>
+    <name>Apache Sling Validation Framework Builder</name>
     <description>Builds the Apache Sling Validation Framework and its testing services</description>
 
 </project>

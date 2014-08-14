@@ -4,11 +4,11 @@
         "/validation/testing/fakeFolder1"
     ],
     "sling:resourceType": "sling/validation/model",
-    "fields": {
+    "properties": {
         "jcr:primaryType" : "nt:unstructured",
         "field1": {
             "jcr:primaryType" : "nt:unstructured",
-            "fieldType": "string",
+            "propertyType": "string",
             "validators": {
                 "jcr:primaryType" : "nt:unstructured",
                 "org.apache.sling.validation.impl.validators.RegexValidator": {
@@ -16,6 +16,10 @@
                     "validatorArguments" : ["regex=^\\p{L}+$"]
                 }
             }
+        },
+        "field2" : {
+            "jcr:primaryType" : "nt:unstructured",
+            "propertyType" : "date"
         }
     }
 }

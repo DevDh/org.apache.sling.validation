@@ -3,3 +3,4 @@ target/
 *.iml
 *.log
 it-http/sling/
+atlassian-ide-plugin.xml
